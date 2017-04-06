@@ -1,0 +1,23 @@
+{
+    "name": "evolution/swoole-delay-jobs",
+    "description": "基于swoole的延迟jobss",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "wjcgithub",
+            "email": "wjc163@sina.cn"
+        }
+    ],
+    "require": {
+        "php": ">=5.4",
+        "ext-swoole": ">=1.8.9",
+        "ext-redis": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Evolution\\DJob\\": "src",
+            "Evolution\\Test\\DJob\\": "test\\jobs"
+        }
+    }
+}
