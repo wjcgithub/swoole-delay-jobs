@@ -12,7 +12,8 @@
     "require": {
         "php": ">=5.4",
         "ext-swoole": ">=1.8.9",
-        "ext-redis": "*"
+        "ext-redis": "*",
+        "ext-seaslog": "*"
     },
     "autoload": {
         "psr-4": {
