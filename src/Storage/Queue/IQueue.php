@@ -13,6 +13,8 @@ abstract class IQueue
 
     public function pop($key){}
 
+    public function getAll($key){}
+
     public function uuid()
     {
         $len     = 20;
