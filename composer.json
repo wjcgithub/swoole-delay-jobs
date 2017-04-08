@@ -18,7 +18,7 @@
     "autoload": {
         "psr-4": {
             "Evolution\\DJob\\": "src",
-            "Evolution\\Test\\DJob\\": "test\\jobs"
+            "Evolution\\Test\\DJob\\": "test"
         }
     }
 }
