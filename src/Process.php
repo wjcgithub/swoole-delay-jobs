@@ -26,7 +26,8 @@ class Process
     private $config=[];
     private $ptr=1;
     private $timeWheel = [];
-    private $timeWheelLen = 0;
+    private $slotLength = 0;
+    private $tickDuration = 1;
     private $queue = null;
 
     public function __construct($config)
@@ -34,7 +35,8 @@ class Process
         try {
             $this->config = $config;
             $this->worker_num = $this->config['worker']['worker_num'];
-            $this->timeWheelLen = $this->config['time_wheel']['length'];
+            $this->slotLength = $this->config['time_wheel']['slotLength'];
+            $this->tickDuration = $this->config['time_wheel']['tickDuration'] * 1000;
             $this->queue = new Redis($this->config['queue'][$this->config['queue']['default']]);
             swoole_set_process_name(sprintf('djobs-timer:%s', 'master'));
             $this->mpid = posix_getpid();
@@ -48,13 +50,7 @@ class Process
     //开始运行时间轮
     public function run()
     {
-        swoole_timer_tick(1000, function () {
-            if($this->ptr >= $this->timeWheelLen){
-                $this->ptr=1;
-            }else{
-                $this->ptr++;
-            }
-
+        swoole_timer_tick($this->tickDuration, function () {
             if(!empty($this->timeWheel[$this->ptr])){
                 $cycle = $this->timeWheel[$this->ptr]['cycle'];
                 if($cycle<=0){
@@ -71,6 +67,13 @@ class Process
                     $this->timeWheel[$this->ptr]['cycle'] = $cycle-1;
                 }
             }
+
+            if($this->ptr >= $this->slotLength){
+                $this->ptr=1;
+            }else{
+                $this->ptr++;
+            }
+            $this->queue->set('ptr', $this->ptr);
         });
     }
 
