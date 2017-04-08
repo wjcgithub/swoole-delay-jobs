@@ -6,11 +6,17 @@
  * Time: 上午11:07
  */
 date_default_timezone_set('Asia/Shanghai');
-require __DIR__ . '../../vendor/autoload.php';
+require dirname(__DIR__) . '/vendor/autoload.php';
 $config = parse_ini_file('./config.ini', true);
 $client = new \Evolution\DJob\Client($config);
-$info = [
-    'delayTime' => 50,
-    'json' => json_encode(['name'=>'lisi', 'sex'=>'zhangsan'])
-];
-$client->pushToSolt($info);
+
+for ($i=0; $i<10; $i++) {
+    $dtime = rand(1,100000);
+    $info = [
+        'delayTime' => $dtime,
+        'json' => ['name'=>'lisi', 'sex'=>'zhangsan']
+    ];
+    $client->pushToSolt($info);
+    echo $dtime."\n";
+    sleep(1);
+}
