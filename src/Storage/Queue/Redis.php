@@ -46,6 +46,6 @@ class Redis extends IQueue
     public function __call($name, $arguments)
     {
         $arguments[0] = self::PREFIX.$arguments[0];
-        call_user_func_array([$this->redis, $name], $arguments);
+        return call_user_func_array([$this->redis, $name], $arguments);
     }
 }
