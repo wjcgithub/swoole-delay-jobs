@@ -10,10 +10,10 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 $config = parse_ini_file('./config.ini', true);
 $client = new \Evolution\DJob\Client($config);
 
-for ($i=0; $i<10; $i++) {
-    $dtime = rand(30,3600);
+for ($i=0; $i<200; $i++) {
+    $dtime = rand(30,760);
     $info = [
-        'delayTime' => $dtime,
+        'delayTime' => 2,
         'json' => ['name'=>'lisi', 'sex'=>'zhangsan']
     ];
     $client->pushToSolt($info);

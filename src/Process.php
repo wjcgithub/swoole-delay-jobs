@@ -16,7 +16,7 @@ class Process
     //子进程worker数组
     public $works=[];
     //最大子进程数
-    private $worker_num = 0;
+    private $worker_num = 5;
     //子进程索引号码
     public static $new_index=0;
     //处理队列进程的进程id
@@ -51,46 +51,61 @@ class Process
     public function run()
     {
         swoole_timer_tick($this->tickDuration, function () {
-            if(!empty($this->timeWheel[$this->ptr])){
-                $cycle = $this->timeWheel[$this->ptr]['cycle'];
-                if($cycle<=0){
-                    //立即执行或者永久执行
-                    $redisKey = $this->timeWheel[$this->ptr]['key'];
-                    if ($this->worker_num < count($this->works)) {
-                        $process = $this->CreateProcess($redisKey);
-                        SeasLog::info("开启进程{$process->pid}处理任务\n");
-                    } else {
-                        //当前执行进程太多，将信息入队列
-                        $this->queue->push($this->queueWorkerName,$this->queue->getAll($redisKey));
-                    }
-                } else if ($cycle>0){
-                    $this->timeWheel[$this->ptr]['cycle'] = $cycle-1;
+            echo "ptr = {$this->ptr}\n";
+            try {
+                $starttime = explode(' ',microtime());
+                $waitProcessList = $this->queue->zRangeByScore($this->ptr, 0, 0);
+                $this->queue->zRemRangeByScore($this->ptr, 0, 0);
+                $list = $this->queue->zRange($this->ptr, 0, -1);
+                foreach ($list as $key => $val) {
+                    $this->queue->zIncrBy($this->ptr, -1, $val);
                 }
-            }
+                echo '默认工作进程数：'.$this->worker_num .'---当前工作进程数'. count($this->works)."\n";
+                if ($this->worker_num > count($this->works) && !empty($waitProcessList)) {
+                    $process = $this->CreateProcess(json_encode($waitProcessList));
+                    echo "开启进程{$process->pid}处理任务\n";
+                    \SeasLog::info("开启进程{$process->pid}\n");
+                } else if ($this->worker_num <= count($this->works) && !empty($waitProcessList)) {
+                    //当前执行进程太多，将信息入队列
+                    echo "进入worker队列\n";
+                    \SeasLog::info("进入worker队列\n");
+                    $this->queue->push($this->queueWorkerName,json_encode($waitProcessList));
+                }
 
-            if($this->ptr >= $this->slotLength){
-                $this->ptr=1;
-            }else{
-                $this->ptr++;
+                //指针++ && save
+                if($this->ptr >= $this->slotLength){
+                    $this->ptr=1;
+                }else{
+                    $this->ptr++;
+                }
+                $this->queue->set('ptr', $this->ptr);
+
+                $endtime = explode(' ',microtime());
+                $thistime = $endtime[0]+$endtime[1]-($starttime[0]+$starttime[1]);
+                $thistime = round($thistime,3);
+                echo "本网页执行耗时：".$thistime." 秒。".time()."\n";
+            } catch (\Exception $e) {
+                \SeasLog::error('处理任务失败:失败信息是：'.$e->getTraceAsString().'msg:'.$e->getMessage().'line:'.$e->getLine());
             }
-            $this->queue->set('ptr', $this->ptr);
         });
     }
 
     //创建子进程
-    public function CreateProcess($redisKey, $index=null)
+    public function CreateProcess($list, $index=null)
     {
         if (is_null($index)) {
             $index = self::$new_index;
             self::$new_index++;
         }
-        $json = $this->queue->getAll($redisKey);
-        $process = new \Swoole\Process(function (\Swoole\Process $worker) use ($json,$index){
+        $process = new \Swoole\Process(function (\Swoole\Process $worker) use ($list,$index){
             //设置子进程名字
             swoole_set_process_name(sprintf('djobs-timer-child:%s', $index));
-            print_r('djobs-timer-child:%s', $index.'--'.$json);
+            print_r('djobs-timer-child:%s', $index.'--'.$list);
             sleep(10);
-            SeasLog::info("进程{$worker->pid}处理完毕\n");
+            \SeasLog::info("进程{$worker->pid}处理完毕---{$index}\n");
+            print_r($this->works);
+            unset($this->works[$index]);
+            $worker->exit();
         },0,0);
 
         $pid = $process->start();

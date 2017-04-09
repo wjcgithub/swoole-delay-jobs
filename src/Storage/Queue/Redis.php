@@ -38,7 +38,7 @@ class Redis extends IQueue
     {
         $json = $this->redis->lRange(self::PREFIX.$key,0,-1);
         if(!$this->redis->del(self::PREFIX.$key)){
-            SeasLog::error('删除键'.self::PREFIX.$key.'失败'.'----数据：'.$json);
+            \SeasLog::error('删除键'.self::PREFIX.$key.'失败'.'----数据：'.$json);
         }
         return $json;
     }
