@@ -11,7 +11,7 @@ $config = parse_ini_file('./config.ini', true);
 $client = new \Evolution\DJob\Client($config);
 
 for ($i=0; $i<10; $i++) {
-    $dtime = rand(1,100000);
+    $dtime = rand(30,3600);
     $info = [
         'delayTime' => $dtime,
         'json' => ['name'=>'lisi', 'sex'=>'zhangsan']
