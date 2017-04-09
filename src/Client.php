@@ -8,7 +8,6 @@
 
 namespace Evolution\DJob;
 
-
 use Evolution\DJob\Storage\Queue\Redis;
 
 class Client
@@ -24,10 +23,14 @@ class Client
         $this->queue = new Redis($this->config['queue'][$this->config['queue']['default']]);
     }
 
+    /**
+     * add task to solt of time wheel
+     *
+     * @param array $param
+     */
     public function pushToSolt(array $param)
     {
         $delayTime = $param['delayTime'];
-
         //计算周期
         $ptr = $this->queue->get('ptr');
         $offsetDelayTime = $delayTime+$ptr;
@@ -38,9 +41,14 @@ class Client
             'json' => $param['json'],
             'jobid' => $this->uuid()
         ];
-        $this->queue->push($solt,json_encode($info));
+        $this->queue->zadd($solt,$cycle,json_encode($info));
     }
 
+    /**
+     * generate uuid of jobs
+     *
+     * @return string
+     */
     protected function uuid()
     {
         $len     = 20;
