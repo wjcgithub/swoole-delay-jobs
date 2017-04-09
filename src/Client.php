@@ -37,7 +37,6 @@ class Client
         $cycle = floor($delayTime / $this->slotLength);
         $solt = $offsetDelayTime % $this->slotLength;
         $info = [
-            'cycle' => $cycle,
             'json' => $param['json'],
             'jobid' => $this->uuid()
         ];
