@@ -49,7 +49,7 @@ class Process
     public function run()
     {
         swoole_timer_tick($this->tickDuration, function () {
-            echo "ptr = {$this->ptr}\n";
+            \SeasLog::debug("ptr = {$this->ptr}\n");
             try {
                 $starttime = explode(' ',microtime());
                 $waitProcessList = $this->queue->zRangeByScore($this->ptr, 0, 0);
@@ -58,15 +58,13 @@ class Process
                 foreach ($list as $key => $val) {
                     $this->queue->zIncrBy($this->ptr, -1, $val);
                 }
-                echo '默认工作进程数：'.$this->worker_num .'---当前工作进程数'. count($this->works)."\n";
+                \SeasLog::debug('默认工作进程数：'.$this->worker_num .'---当前工作进程数'. count($this->works)."\n");
                 if ($this->worker_num > count($this->works) && !empty($waitProcessList)) {
                     $process = $this->CreateProcess(json_encode($waitProcessList));
-                    echo "开启进程{$process->pid}处理任务\n";
-                    \SeasLog::info("开启进程{$process->pid}\n");
+                    \SeasLog::debug("开启进程{$process->pid}处理任务\n");
                 } else if ($this->worker_num <= count($this->works) && !empty($waitProcessList)) {
                     //当前执行进程太多，将信息入队列
-                    echo "进入worker队列\n";
-                    \SeasLog::info("进入worker队列\n");
+                    \SeasLog::debug("进入worker队列, info => {$waitProcessList} \n");
                     $this->queue->push($this->queueWorkerName,json_encode($waitProcessList));
                 }
 
@@ -81,7 +79,7 @@ class Process
                 $endtime = explode(' ',microtime());
                 $thistime = $endtime[0]+$endtime[1]-($starttime[0]+$starttime[1]);
                 $thistime = round($thistime,3);
-                echo "本网页执行耗时：".$thistime." 秒。".time()."\n";
+                \SeasLog::debug("本网页执行耗时：".$thistime." 秒。".time()."\n");
             } catch (\Exception $e) {
                 \SeasLog::error('处理任务失败:失败信息是：'.$e->getTraceAsString().'msg:'.$e->getMessage().'line:'.$e->getLine());
             }
@@ -98,9 +96,7 @@ class Process
         $process = new \Swoole\Process(function (\Swoole\Process $worker) use ($list,$index){
             //设置子进程名字
             swoole_set_process_name(sprintf('djobs-timer-child:%s', $index));
-            print_r('djobs-timer-child:%s', $index.'--'.$list);
-            sleep(3);
-            \SeasLog::info("进程{$worker->pid}处理完毕---{$index}\n");
+            \SeasLog::debug("进程{$worker->pid}处理完毕---{$index}\n");
             $worker->exit($index);
         },0,0);
 
@@ -117,7 +113,7 @@ class Process
     {
         if (!\Swoole\Process::kill($this->mpid, 0)) {
             $worker->exit();
-            echo "Master process exited, I [{$worker['pid']} also quit\n]";
+            \SeasLog::debug("Master process exited, I [{$worker['pid']} also quit\n");
         }
     }
 
@@ -125,20 +121,16 @@ class Process
     public function registSignal()
     {
         \Swoole\Process::signal(SIGTERM, function ($signo) {
-            echo "＝＝主进程信号＝＝：".$signo."\n";
-            $this->exitMaster("收到退出信号,退出主进程");
+            $this->exitMaster();
         });
         $workers = $this->works;
         \Swoole\Process::signal(SIGCHLD, function ($signo) use (&$workers) {
-            echo "＝＝子进程信号＝＝：".$signo."\n";
             while ($ret = \Swoole\Process::wait(false)) {
                 if ($ret) {
                     $pid           = $ret['pid'];
-                    $index         = $ret['code'];
-                    echo "Worker Exit, kill_signal={$ret['signal']} PID=" . $pid . PHP_EOL;
-                    unset($this->works[$index]);
-                } else {
-                    break;
+                    $code         = $ret['code'];
+                    \SeasLog::debug("Worker Exit, kill_signal={$ret['signal']} PID=" . $pid . PHP_EOL);
+                    unset($this->works[$code]);
                 }
             }
         });
@@ -146,6 +138,7 @@ class Process
 
     private function exitMaster()
     {
+        \SeasLog::debug("Master quit\n");
         \SeasLog::setLogger('djobs_master');
         \SeasLog::error("Time: " . microtime(true) . "主进程退出" . "\n");
         exit();
