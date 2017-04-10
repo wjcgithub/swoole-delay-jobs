@@ -10,7 +10,6 @@ use Evolution\DJob\Storage\Queue\Redis;
  */
 class Process
 {
-
     //master进程id
     public $mpid=0;
     //子进程worker数组
@@ -21,11 +20,10 @@ class Process
     public static $new_index=0;
     //处理队列进程的进程id
     private $queueWorkPid = 0;
+    //独立缓冲队列
     private $queueWorkerName = 'queuework';
-    //config
     private $config=[];
     private $ptr=1;
-    private $timeWheel = [];
     private $slotLength = 0;
     private $tickDuration = 1;
     private $queue = null;
@@ -41,7 +39,7 @@ class Process
             swoole_set_process_name(sprintf('djobs-timer:%s', 'master'));
             $this->mpid = posix_getpid();
             $this->run();
-            $this->processWait();
+            $this->registSignal();
         } catch (\Exception $e) {
             die('ALL ERROR: '. $e->getMessage());
         }
@@ -101,11 +99,9 @@ class Process
             //设置子进程名字
             swoole_set_process_name(sprintf('djobs-timer-child:%s', $index));
             print_r('djobs-timer-child:%s', $index.'--'.$list);
-            sleep(10);
+            sleep(3);
             \SeasLog::info("进程{$worker->pid}处理完毕---{$index}\n");
-            print_r($this->works);
-            unset($this->works[$index]);
-            $worker->exit();
+            $worker->exit($index);
         },0,0);
 
         $pid = $process->start();
@@ -125,36 +121,33 @@ class Process
         }
     }
 
-    /**
-     * 重启进程
-     * @param $ret
-     */
-    public function rebootProcess($ret)
+    //监控子进程
+    public function registSignal()
     {
-        $pid = $ret['pid'];
-        $index = array_search($pid, $this->works);
-        if ($index !== false) {
-            $index=intval($index);
-            $process=$this->CreateProcess($index);
-            echo "rebootProcess: {$index}={$process->pid} Done\n";
-            return;
-        }
+        \Swoole\Process::signal(SIGTERM, function ($signo) {
+            echo "＝＝主进程信号＝＝：".$signo."\n";
+            $this->exitMaster("收到退出信号,退出主进程");
+        });
+        $workers = $this->works;
+        \Swoole\Process::signal(SIGCHLD, function ($signo) use (&$workers) {
+            echo "＝＝子进程信号＝＝：".$signo."\n";
+            while ($ret = \Swoole\Process::wait(false)) {
+                if ($ret) {
+                    $pid           = $ret['pid'];
+                    $index         = $ret['code'];
+                    echo "Worker Exit, kill_signal={$ret['signal']} PID=" . $pid . PHP_EOL;
+                    unset($this->works[$index]);
+                } else {
+                    break;
+                }
+            }
+        });
     }
 
-    /**
-     * 回收结束运行的子进程
-     */
-    public function processWait()
+    private function exitMaster()
     {
-        while (1) {
-            if (count($this->works)) {
-                $ret = \Swoole\Process::wait();
-                if($ret){
-                    $this->rebootProcess($ret);
-                }
-            } else {
-                break;
-            }
-        }
+        \SeasLog::setLogger('djobs_master');
+        \SeasLog::error("Time: " . microtime(true) . "主进程退出" . "\n");
+        exit();
     }
 }
