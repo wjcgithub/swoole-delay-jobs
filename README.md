@@ -37,8 +37,8 @@
 - redis[port]=6379
 
 #### 启动测试
-php start.php
-php /test/TestPush.php
+- php start.php
+- php /test/TestPush.php
 
 ## SeasLog日志记录
 ```php
