@@ -72,7 +72,7 @@ class Process
                 if($this->ptr >= $this->slotLength){
                     $this->ptr=1;
                 }else{
-                    $this->ptr++;
+                    $this->ptr+=$this->tickDuration;
                 }
                 $this->queue->set('ptr', $this->ptr);
 
@@ -81,6 +81,7 @@ class Process
                 $thistime = round($thistime,3);
                 \SeasLog::debug("本网页执行耗时：".$thistime." 秒。".time()."\n");
             } catch (\Exception $e) {
+                \SeasLog::setLogger('error');
                 \SeasLog::error('处理任务失败:失败信息是：'.$e->getTraceAsString().'msg:'.$e->getMessage().'line:'.$e->getLine());
             }
         });
