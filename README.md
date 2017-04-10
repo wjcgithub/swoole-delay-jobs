@@ -13,17 +13,17 @@
 9. 进程异常中断处理，从启后保证还能正常执行（否）
 
 ## 安装 && 启动
-#### 安装依赖
+### 安装依赖
 1. redis 扩展
 2. seaslog 扩展
 3. swoole > 1.8.9
 
-#### 安装程序
+### 安装程序
 1. git clone git@github.com:wjcgithub/swoole-delay-jobs.git
 2. cd swoole-delay-jobs
 3. composer install
 
-#### 配置
+### 配置
 > [time_wheel]
 - slotLength=3600  ; 单位second
 - tickDuration=1   ; 单位second
