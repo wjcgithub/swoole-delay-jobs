@@ -36,7 +36,7 @@
 - redis[host]=127.0.0.1
 - redis[port]=6379
 
-#### 启动测试
+### 启动测试
 - php start.php
 - php /test/TestPush.php
 
