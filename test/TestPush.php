@@ -10,7 +10,7 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 $config = parse_ini_file('./config.ini', true);
 $client = new \Evolution\DJob\Client($config);
 
-for ($i=0; $i<200000; $i++) {
+for ($i=0; $i<20000; $i++) {
     $dtime = rand(30,60);
     $info = [
         'delayTime' => $dtime,
@@ -18,4 +18,5 @@ for ($i=0; $i<200000; $i++) {
     ];
     $client->pushToSolt($info);
     echo $dtime."\n";
+    sleep(1);
 }
