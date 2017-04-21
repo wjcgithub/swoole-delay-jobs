@@ -36,6 +36,8 @@ class Process
             $this->slotLength = $this->config['time_wheel']['slotLength'];
             $this->tickDuration = $this->config['time_wheel']['tickDuration'] * 1000;
             $this->queue = new Redis($this->config['queue'][$this->config['queue']['default']]);
+            $ptr = $this->queue->get('ptr');
+            $this->ptr = empty($ptr) ? $this->ptr : $ptr;
             swoole_set_process_name(sprintf('djobs-timer:%s', 'master'));
             $this->mpid = posix_getpid();
             $this->run();
@@ -72,7 +74,7 @@ class Process
                 if($this->ptr >= $this->slotLength){
                     $this->ptr=1;
                 }else{
-                    $this->ptr+=$this->tickDuration;
+                    $this->ptr++;
                 }
                 $this->queue->set('ptr', $this->ptr);
 
@@ -97,6 +99,9 @@ class Process
         $process = new \Swoole\Process(function (\Swoole\Process $worker) use ($list,$index){
             //设置子进程名字
             swoole_set_process_name(sprintf('djobs-timer-child:%s', $index));
+            echo "\n任务列表：====\n";
+            print_r($list);
+            echo "\n任务列表：====\n";
             \SeasLog::debug("进程{$worker->pid}处理完毕---{$index}\n");
             $worker->exit($index);
         },0,0);
