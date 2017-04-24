@@ -1,5 +1,8 @@
 <?php
 namespace Evolution\DJob;
+use Evolution\DJob\Events\AfterCreateProcessEvent;
+use Evolution\DJob\Events\BeforeCreateProcessEvent;
+use Evolution\DJob\Events\ECommon;
 use Evolution\DJob\Storage\Queue\Redis;
 
 /**
@@ -27,6 +30,7 @@ class Process
     private $slotLength = 0;
     private $tickDuration = 1;
     private $queue = null;
+    private $emitter = null;
 
     public function __construct($config)
     {
@@ -40,11 +44,22 @@ class Process
             $this->ptr = empty($ptr) ? $this->ptr : $ptr;
             swoole_set_process_name(sprintf('djobs-timer:%s', 'master'));
             $this->mpid = posix_getpid();
+            $this->emitter = new \League\Event\Emitter();
+            $this->registerEvent();
             $this->run();
             $this->registSignal();
         } catch (\Exception $e) {
             die('ALL ERROR: '. $e->getMessage());
         }
+    }
+
+    /**
+     * register event
+     */
+    public function registerEvent()
+    {
+        $this->emitter->addListener('BeforeCreateProcessEvent', new \Evolution\DJob\Listeners\BeforeCreateProcessListener());
+        $this->emitter->addListener('AfterCreateProcessEvent', new \Evolution\DJob\Listeners\AfterCreateProcessListener());
     }
 
     //开始运行时间轮
@@ -62,8 +77,9 @@ class Process
                 }
                 \SeasLog::debug('默认工作进程数：'.$this->worker_num .'---当前工作进程数'. count($this->works)."\n");
                 if ($this->worker_num > count($this->works) && !empty($waitProcessList)) {
+                    $this->emitter->emit(new BeforeCreateProcessEvent());
                     $process = $this->CreateProcess(json_encode($waitProcessList));
-                    \SeasLog::debug("开启进程{$process->pid}处理任务\n");
+                    $this->emitter->emit(new AfterCreateProcessEvent($process->pid));
                 } else if ($this->worker_num <= count($this->works) && !empty($waitProcessList)) {
                     //当前执行进程太多，将信息入队列
                     \SeasLog::debug("进入worker队列, info => {$waitProcessList} \n");
