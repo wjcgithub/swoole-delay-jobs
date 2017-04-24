@@ -13,7 +13,8 @@
         "php": ">=5.4",
         "ext-swoole": ">=1.8.9",
         "ext-redis": "*",
-        "ext-seaslog": "*"
+        "ext-seaslog": "*",
+        "league/event": "^2.1"
     },
     "autoload": {
         "psr-4": {
