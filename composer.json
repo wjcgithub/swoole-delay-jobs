@@ -1,6 +1,6 @@
 {
-    "name": "evolution/swoole-delay-jobs",
-    "description": "基于swoole的延迟jobss",
+    "name": "evolution/pts",
+    "description": "Php Tasks Schedule",
     "type": "project",
     "license": "MIT",
     "authors": [
