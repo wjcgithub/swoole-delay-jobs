@@ -4,6 +4,7 @@ use Evolution\DJob\Events\AfterCreateProcessEvent;
 use Evolution\DJob\Events\BeforeCreateProcessEvent;
 use Evolution\DJob\Events\ECommon;
 use Evolution\DJob\Storage\Queue\Redis;
+use Evolution\DJob\Storage\Zk\Zk;
 
 /**
  * Created by PhpStorm.
@@ -31,6 +32,8 @@ class Process
     private $tickDuration = 1;
     private $queue = null;
     private $emitter = null;
+    private $masterZk = [];
+    private $agentZk = [];
 
     public function __construct($config)
     {
@@ -39,18 +42,32 @@ class Process
             $this->worker_num = $this->config['worker']['worker_num'];
             $this->slotLength = $this->config['time_wheel']['slotLength'];
             $this->tickDuration = $this->config['time_wheel']['tickDuration'] * 1000;
-            $this->queue = new Redis($this->config['queue'][$this->config['queue']['default']]);
-            $ptr = $this->queue->get('ptr');
-            $this->ptr = empty($ptr) ? $this->ptr : $ptr;
-            swoole_set_process_name(sprintf('djobs-timer:%s', 'master'));
-            $this->mpid = posix_getpid();
-            $this->emitter = new \League\Event\Emitter();
-            $this->registerEvent();
-            $this->run();
-            $this->registSignal();
+            $this->masterZk['connect'] = explode(',', $this->config['master']['zk']['zkConnect']);
+            $this->masterZk['sessiontimeoutms'] = $this->config['master']['zk']['zkSessionTimeoutMs'];
+            $this->masterZk['connectiontimeoutms'] = $this->config['master']['zk']['zkConnectionTimeoutMs'];
+            $this->agentZk['connect'] = explode(',', $this->config['agent']['zk']['zkConnect']);
+            $this->agentZk['sessiontimeoutms'] = $this->config['agent']['zk']['zkSessionTimeoutMs'];
+            $this->agentZk['connectiontimeoutms'] = $this->config['agent']['zk']['zkConnectionTimeoutMs'];
+            $this->init();
         } catch (\Exception $e) {
             die('ALL ERROR: '. $e->getMessage());
         }
+    }
+
+    /**
+     * 初始化
+     */
+    private function init()
+    {
+        $this->queue = new Redis($this->config['queue'][$this->config['queue']['default']]);
+        $this->emitter = new \League\Event\Emitter();
+        $ptr = $this->queue->get('ptr');
+        $this->ptr = empty($ptr) ? $this->ptr : $ptr;
+        swoole_set_process_name(sprintf('djobs-timer:%s', 'master'));
+        $this->mpid = posix_getpid();
+        $this->registerEvent();
+        $this->run();
+        $this->registSignal();
     }
 
     /**
@@ -62,8 +79,61 @@ class Process
         $this->emitter->addListener('AfterCreateProcessEvent', new \Evolution\DJob\Listeners\AfterCreateProcessListener());
     }
 
-    //开始运行时间轮
-    public function run()
+    /**
+     * start run
+     */
+    private function run()
+    {
+        $this->zookeeper = Zk::connectZk(implode(',',$this->masterZk['connect']),$this->masterZk['sessiontimeoutms']);
+        $this->registerToZk();
+        $this->startTimer();
+    }
+
+    private function registerToZk()
+    {
+        try{
+            $this->startReg();
+        } catch (\ZookeeperSessionException $e){
+            $this->startReg();
+        } catch (\ZookeeperConnectionException $e){
+            $this->startReg();
+        } catch (\Exception $e) {
+            print "exception----".$e->getMessage();
+            $this->startReg();
+        }
+    }
+
+    private function startReg()
+    {
+        if( ! $this->exists( Zk ::CONTAINER ) ) {
+            $this->create( ZK ::CONTAINER , null, Zk::$acl );
+        }
+        while (1) {
+//            $this->zookeeper->isRecoverable();
+            echo "\r\n======recv======{$this->zookeeper->getRecvTimeout()}====\r\n";
+            echo "\r\n================\r\n";
+            $aclArray = array(
+                array(
+                    'perms'  => \Zookeeper::PERM_ALL,
+                    'scheme' => 'world',
+                    'id'     => 'anyone',
+                )
+            );
+            $path = '/wjc/test'.time();
+            $realPath = $this->zookeeper->create($path, null, $aclArray, \Zookeeper::EPHEMERAL);
+            if ($realPath)
+                echo $realPath;
+            else
+                echo 'ERR';
+
+            echo "\r\n zk status \r\n";
+            print_r($this->zookeeper->getState());
+            echo "\r\n zk status \r\n";
+            sleep(20);
+        }
+    }
+
+    private function startTimer()
     {
         swoole_timer_tick($this->tickDuration, function () {
             \SeasLog::debug("ptr = {$this->ptr}\n");
@@ -115,9 +185,9 @@ class Process
         $process = new \Swoole\Process(function (\Swoole\Process $worker) use ($list,$index){
             //设置子进程名字
             swoole_set_process_name(sprintf('djobs-timer-child:%s', $index));
-            echo "\n任务列表：====\n";
-            print_r($list);
-            echo "\n任务列表：====\n";
+            \SeasLog::debug("\n任务列表：====\n\n");
+            \SeasLog::debug($list);
+            \SeasLog::debug("\n任务列表：====\n\n");
             \SeasLog::debug("进程{$worker->pid}处理完毕---{$index}\n");
             $worker->exit($index);
         },0,0);
