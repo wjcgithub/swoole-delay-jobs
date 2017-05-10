@@ -14,7 +14,6 @@ class BeforeCreateProcessListener extends AbstractListener
 {
     public function handle(EventInterface $event, $param = null)
     {
-        echo "准备开启进程去处理任务\n";
         \SeasLog::debug("准备开启进程去处理任务\n");
     }
 }

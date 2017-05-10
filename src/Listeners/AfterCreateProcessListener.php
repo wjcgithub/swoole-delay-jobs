@@ -14,7 +14,6 @@ class AfterCreateProcessListener extends AbstractListener
 {
     public function handle(EventInterface $event, $param = null)
     {
-        echo "进程创建完毕，pid:{$event->getPid()}\n";
         \SeasLog::debug("进程创建完毕，pid:{$event->getPid()}\n");
     }
 }
