@@ -54,9 +54,6 @@ class Process
         }
     }
 
-    /**
-     * 初始化
-     */
     private function init()
     {
         $this->queue = new Redis($this->config['queue'][$this->config['queue']['default']]);
@@ -70,18 +67,12 @@ class Process
         $this->registSignal();
     }
 
-    /**
-     * register event
-     */
     public function registerEvent()
     {
         $this->emitter->addListener('BeforeCreateProcessEvent', new \Evolution\DJob\Listeners\BeforeCreateProcessListener());
         $this->emitter->addListener('AfterCreateProcessEvent', new \Evolution\DJob\Listeners\AfterCreateProcessListener());
     }
 
-    /**
-     * start run
-     */
     private function run()
     {
         $this->zookeeper = Zk::connectZk(implode(',',$this->masterZk['connect']),$this->masterZk['sessiontimeoutms']);
@@ -212,11 +203,11 @@ class Process
     //监控子进程
     public function registSignal()
     {
+        //等待主进程的正常退出
         \Swoole\Process::signal(SIGTERM, function ($signo) {
             $this->exitMaster();
         });
-        $workers = $this->works;
-        \Swoole\Process::signal(SIGCHLD, function ($signo) use (&$workers) {
+        \Swoole\Process::signal(SIGCHLD, function ($signo) {
             while ($ret = \Swoole\Process::wait(false)) {
                 if ($ret) {
                     $pid           = $ret['pid'];

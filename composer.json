@@ -14,12 +14,19 @@
         "ext-swoole": ">=1.8.9",
         "ext-redis": "*",
         "ext-seaslog": "*",
-        "league/event": "^2.1"
+        "league/event": "^2.1",
+        "wangjichao/timer-wheel": "dev-master"
     },
     "autoload": {
         "psr-4": {
             "Evolution\\DJob\\": "src",
             "Evolution\\Test\\DJob\\": "test"
         }
-    }
+    },
+    "repositories":[
+        {
+            "type":"path",
+            "url":"./packages/"
+        }
+    ]
 }
